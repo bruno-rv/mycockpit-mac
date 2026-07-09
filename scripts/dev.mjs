@@ -52,7 +52,9 @@ async function main() {
   const shutdown = async () => {
     try {
       rmSync(devServerHostFile, { force: true });
-    } catch {}
+    } catch {
+      // Best-effort cleanup — fine if the file is already gone.
+    }
     await server.close();
   };
 

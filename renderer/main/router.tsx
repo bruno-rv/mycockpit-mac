@@ -53,6 +53,8 @@ declare module "@tanstack/react-router" {
   }
   interface StaticDataRouteOption {
     title?: string;
+    // Ambient module augmentation; route static data intentionally accepts any component reference.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component?: any;
   }
 }

@@ -34,7 +34,7 @@ type DevHarness = {
 };
 let devHarness: DevHarness | null = null;
 if (process.env.GLAZE_DEV_HARNESS === "1") {
-  // @ts-ignore dev-only harness; present only in the template, excluded from scaffolded apps
+  // @ts-expect-error dev-only harness; present only in the template, excluded from scaffolded apps
   devHarness = (await import("./dev/parity-autotest.js")) as DevHarness;
   devHarness.applyParityScenarioStartup();
 }

@@ -1,8 +1,11 @@
 /*
- * Glaze framework styles (@import "@glaze/core/..." and @import "tailwindcss")
- * are automatically injected before this file during build and dev.
- * Add your custom styles and @source directives below.
+ * Glaze's CLI used to auto-inject `@import "@glaze/core/..."` and `@import "tailwindcss"`
+ * before this file at build time. There's no CLI now, so both imports are explicit
+ * (PORT_PLAN 2.4) — the vendored component styles (Radix color scales, `@custom-variant`,
+ * `@font-face`) come from src/glaze-compat/components/styles.css.
  */
+@import "tailwindcss";
+@import "../src/glaze-compat/components/styles.css";
 
 /* Tell Tailwind to scan all local renderer window files for class names */
 @source "./**/*.{ts,tsx}";
