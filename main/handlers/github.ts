@@ -7,7 +7,8 @@
  */
 
 import { ipcMain, logger } from "@glaze/core/backend";
-import { githubOAuth } from "../services/github-oauth.js";
+import { configService } from "../services/config-service.js";
+import { getGithubOAuth } from "../services/github-oauth.js";
 
 type GitHubSince = "daily" | "weekly" | "monthly";
 
@@ -45,11 +46,17 @@ interface GitHubSearchResponse {
 export function registerGitHubHandlers(): void {
   ipcMain.handle("github:getStatus", async () => {
     logger.info("github", "[github:getStatus] checking connection status");
+    const configured = await configService.hasGitHubClientId();
+    if (!configured) {
+      logger.info("github", "[github:getStatus] not configured");
+      return { connected: false, configured: false };
+    }
     try {
+      const githubOAuth = await getGithubOAuth();
       const tokens = await githubOAuth.getTokens();
       if (!tokens) {
         logger.info("github", "[github:getStatus] not connected");
-        return { connected: false };
+        return { connected: false, configured: true };
       }
       const accessToken = await githubOAuth.getAccessToken();
       const response = await fetch("https://api.github.com/user", {
@@ -61,19 +68,20 @@ export function registerGitHubHandlers(): void {
       });
       if (!response.ok) {
         logger.warn("github", `[github:getStatus] user fetch failed: ${response.status}`);
-        return { connected: false };
+        return { connected: false, configured: true };
       }
       const user = (await response.json()) as GitHubUserResponse;
       logger.info("github", `[github:getStatus] connected as ${user.login}`);
-      return { connected: true, login: user.login, avatarUrl: user.avatar_url };
+      return { connected: true, configured: true, login: user.login, avatarUrl: user.avatar_url };
     } catch (err) {
       logger.error("github", "[github:getStatus] error", err);
-      return { connected: false };
+      return { connected: false, configured };
     }
   });
 
   ipcMain.handle("github:connect", async () => {
     logger.info("github", "[github:connect] starting OAuth flow");
+    const githubOAuth = await getGithubOAuth();
     await githubOAuth.authorize();
     const accessToken = await githubOAuth.getAccessToken();
     const response = await fetch("https://api.github.com/user", {
@@ -96,7 +104,12 @@ export function registerGitHubHandlers(): void {
 
   ipcMain.handle("github:disconnect", async () => {
     logger.info("github", "[github:disconnect] removing tokens");
-    await githubOAuth.removeTokens();
+    try {
+      const githubOAuth = await getGithubOAuth();
+      await githubOAuth.removeTokens();
+    } catch {
+      // Not configured — no tokens could have been stored anyway
+    }
     return { connected: false };
   });
 
@@ -125,13 +138,14 @@ export function registerGitHubHandlers(): void {
       "X-GitHub-Api-Version": "2022-11-28",
     };
     try {
+      const githubOAuth = await getGithubOAuth();
       const tokens = await githubOAuth.getTokens();
       if (tokens) {
         const accessToken = await githubOAuth.getAccessToken();
         headers["Authorization"] = `Bearer ${accessToken}`;
       }
     } catch {
-      // Unauthenticated fallback — lower rate limit but still works
+      // Not configured/connected — unauthenticated fallback (lower rate limit, still works)
     }
 
     const response = await fetch(queryUrl, { headers });

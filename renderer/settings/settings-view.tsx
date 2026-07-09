@@ -46,10 +46,12 @@ interface AppConfig {
   hasAnthropicKey: boolean;
   hasOpenAIKey: boolean;
   hasGoogleCreds: boolean;
+  hasGitHubClientId: boolean;
 }
 
 interface GithubStatus {
   connected: boolean;
+  configured?: boolean;
   login?: string;
   avatarUrl?: string;
 }
@@ -509,8 +511,6 @@ function WebsitesSection({ config }: { config: AppConfig }) {
 
 // ─── Google Section ───────────────────────────────────────────────────────────
 
-const REDIRECT_URI = "https://www.glaze.app/api/oauth/callback";
-
 function SetupStep({ n, children }: { n: number; children: ReactNode }) {
   return (
     <li className="flex gap-2.5">
@@ -588,21 +588,15 @@ function GoogleSetupDialog() {
           </Text>{" "}
           and pick application type{" "}
           <Text as="span" variant="small" color="primary" className="font-medium">
-            Web application
+            Desktop app
           </Text>
-          .
+          . Desktop-app credentials accept any{" "}
+          <Text as="span" variant="small" color="primary" className="font-medium">
+            http://127.0.0.1
+          </Text>{" "}
+          redirect automatically — no redirect URI to register.
         </SetupStep>
         <SetupStep n={5}>
-          Under{" "}
-          <Text as="span" variant="small" color="primary" className="font-medium">
-            Authorized redirect URIs
-          </Text>
-          , add this exact URI:
-          <span className="mt-1.5 block rounded-control bg-control px-2 py-1 font-mono text-xs text-primary break-all">
-            {REDIRECT_URI}
-          </span>
-        </SetupStep>
-        <SetupStep n={6}>
           Click{" "}
           <Text as="span" variant="small" color="primary" className="font-medium">
             Create
@@ -617,12 +611,16 @@ function GoogleSetupDialog() {
           </Text>{" "}
           into the fields below and save.
         </SetupStep>
-        <SetupStep n={7}>
+        <SetupStep n={6}>
           Click{" "}
           <Text as="span" variant="small" color="primary" className="font-medium">
             Connect
+          </Text>
+          . The app opens your browser and starts a temporary local server on{" "}
+          <Text as="span" variant="small" color="primary" className="font-medium">
+            127.0.0.1
           </Text>{" "}
-          and approve access to Gmail, Calendar, and YouTube.
+          to receive the response — approve access to Gmail, Calendar, and YouTube there.
         </SetupStep>
       </ol>
     </Dialog>
@@ -827,30 +825,16 @@ function GoogleSection({ config }: { config: AppConfig }) {
 
         <Separator />
 
-        {/* Redirect URI helper */}
+        {/* Loopback guidance */}
         <Field
-          label="Redirect URI"
-          description="Register this URI in your Google Cloud Console OAuth app, and enable the Gmail, Calendar, and YouTube Data APIs. Already connected? Reconnect to grant YouTube access."
+          label="Redirect"
+          description="No redirect URI to register — Desktop-app credentials accept any http://127.0.0.1 redirect. On Connect, the app opens your browser and briefly runs a local server on an ephemeral 127.0.0.1 port to receive the response, then closes it. Already connected? Reconnect to grant YouTube access."
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Input
-              size="small"
-              variant="filled"
-              value="https://www.glaze.app/api/oauth/callback"
-              readOnly
-              className="flex-1 min-w-0 font-mono"
-            />
-            <Button
-              size="small"
-              variant="transparent"
-              iconOnly
-              onClick={() => {
-                void navigator.clipboard?.writeText("https://www.glaze.app/api/oauth/callback");
-                toast.success("Copied to clipboard");
-              }}
-            >
-              <LinkIcon className="size-3.5 text-tertiary" />
-            </Button>
+            <LinkIcon className="size-3.5 text-tertiary shrink-0" />
+            <Text variant="small" color="tertiary" className="font-mono">
+              http://127.0.0.1:&lt;ephemeral-port&gt;
+            </Text>
           </div>
         </Field>
       </FieldGroup>
@@ -860,7 +844,11 @@ function GoogleSection({ config }: { config: AppConfig }) {
 
 // ─── GitHub Section ───────────────────────────────────────────────────────────
 
-function GitHubSection() {
+function GitHubSection({ config }: { config: AppConfig }) {
+  const queryClient = useQueryClient();
+  const [clientId, setClientId] = useState("");
+  const [savingClientId, setSavingClientId] = useState(false);
+  const [clearingClientId, setClearingClientId] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
@@ -871,6 +859,39 @@ function GitHubSection() {
   });
 
   const status = githubStatusQuery.data;
+
+  const handleSaveClientId = async () => {
+    if (!clientId.trim()) return;
+    setSavingClientId(true);
+    console.log("[SettingsView:GitHub:saveClientId]");
+    try {
+      await ipc("config:setGitHubClientId", { clientId: clientId.trim() });
+      queryClient.setQueryData<AppConfig>(["config"], (old) => (old ? { ...old, hasGitHubClientId: true } : old));
+      setClientId("");
+      await githubStatusQuery.refetch();
+      toast.success("GitHub client ID saved");
+    } catch {
+      toast.error("Failed to save client ID");
+    } finally {
+      setSavingClientId(false);
+    }
+  };
+
+  const handleClearClientId = async () => {
+    setClearingClientId(true);
+    console.log("[SettingsView:GitHub:clearClientId]");
+    try {
+      if (status?.connected) await ipc("github:disconnect").catch(() => {});
+      await ipc("config:clearGitHubClientId");
+      queryClient.setQueryData<AppConfig>(["config"], (old) => (old ? { ...old, hasGitHubClientId: false } : old));
+      await githubStatusQuery.refetch();
+      toast.success("GitHub client ID removed");
+    } catch {
+      toast.error("Failed to remove client ID");
+    } finally {
+      setClearingClientId(false);
+    }
+  };
 
   const handleConnect = async () => {
     setConnecting(true);
@@ -928,7 +949,7 @@ function GitHubSection() {
                   Disconnect
                 </Button>
               </>
-            ) : (
+            ) : config.hasGitHubClientId ? (
               <Button
                 size="small"
                 variant="filled"
@@ -942,8 +963,62 @@ function GitHubSection() {
                 )}
                 Connect GitHub
               </Button>
+            ) : (
+              <Text variant="small" color="tertiary">
+                Configure a client ID below first
+              </Text>
             )}
           </div>
+        </Field>
+
+        <Separator />
+
+        <Field
+          label="Client ID"
+          description="GitHub OAuth App client ID with Device Flow enabled — no client secret needed"
+        >
+          {config.hasGitHubClientId ? (
+            <div className="flex items-center gap-2">
+              <Badge color="green">Configured</Badge>
+              <Button
+                size="small"
+                variant="transparent"
+                onClick={() => void handleClearClientId()}
+                disabled={clearingClientId}
+              >
+                {clearingClientId ? (
+                  <Loader2Icon className="size-3.5 animate-spin" />
+                ) : (
+                  <TrashIcon className="size-3.5 text-support-red" />
+                )}
+                Reconfigure
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 flex-1">
+              <Input
+                size="small"
+                variant="filled"
+                placeholder="Iv1.…"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                size="small"
+                variant="filled"
+                onClick={() => void handleSaveClientId()}
+                disabled={savingClientId || !clientId.trim()}
+              >
+                {savingClientId ? (
+                  <Loader2Icon className="size-3.5 animate-spin" />
+                ) : (
+                  <KeyIcon className="size-3.5" />
+                )}
+                Save
+              </Button>
+            </div>
+          )}
         </Field>
       </FieldGroup>
     </FieldSet>
@@ -1028,7 +1103,7 @@ export function SettingsView() {
             <RssFeedsSection config={config} />
             <WebsitesSection config={config} />
             <GoogleSection config={config} />
-            <GitHubSection />
+            <GitHubSection config={config} />
           </>
         ) : configQuery.isLoading ? (
           <div className="flex items-center gap-2 py-4">
