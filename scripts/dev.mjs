@@ -28,6 +28,15 @@ async function main() {
   await buildTarget("preload");
 
   delete process.env.BUILD_TARGET;
+  // `vite.build()` sets process.env.NODE_ENV = "production" as a side effect
+  // and never restores it. Left alone, the dev server resolves in the same
+  // polluted process, config.isProduction becomes true, and
+  // @vitejs/plugin-react disables Fast Refresh (skipFastRefresh) — the
+  // preamble and per-module $RefreshReg$/$RefreshSig$ wiring both vanish,
+  // while the JSX refresh instrumentation (gated only on command === "serve")
+  // still gets injected, causing a `$RefreshSig$ is not defined` crash at
+  // runtime. Reset it before starting the dev server.
+  process.env.NODE_ENV = "development";
   const server = await createServer({
     configFile: resolve(projectRoot, "vite.config.ts"),
     root: projectRoot,

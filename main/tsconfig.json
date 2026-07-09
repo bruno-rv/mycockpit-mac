@@ -18,7 +18,7 @@
       "@glaze/core/oauth": ["../src/glaze-compat/oauth/index.ts"],
       "@glaze/core/ipc": ["../src/glaze-compat/ipc/index.ts"],
       "@glaze/core/preload": ["../src/glaze-compat/preload/index.ts"],
-      "@glaze/core/components": ["../src/glaze-compat/components/index.ts"],
+      "@glaze/core/components": ["../src/glaze-compat/components/index.tsx"],
       "@glaze/core/hooks": ["../src/glaze-compat/hooks/index.ts"],
       "@glaze/core/utils": ["../src/glaze-compat/utils/index.ts"]
     }

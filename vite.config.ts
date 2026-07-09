@@ -18,11 +18,16 @@
  *   (unset / renderer)    → multi-entry renderer build  → out/renderer/      (+ dev server)
  */
 import { resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { defineConfig, type UserConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 const root = __dirname;
+
+// Glaze's CLI injected __APP_DISPLAY_NAME__ from package.json at build time
+// (see renderer/main/bootstrap.tsx); replicate that with a Vite `define`.
+const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf-8")) as { productName?: string };
 const r = (p: string) => resolve(root, p);
 
 // Shared path aliases. `@glaze/core/*` points at the local compat shims so
@@ -36,7 +41,7 @@ const alias = {
   "@glaze/core/preload": r("src/glaze-compat/preload/index.ts"),
   "@glaze/core/ipc": r("src/glaze-compat/ipc/index.ts"),
   "@glaze/core/oauth": r("src/glaze-compat/oauth/index.ts"),
-  "@glaze/core/components": r("src/glaze-compat/components/index.ts"),
+  "@glaze/core/components": r("src/glaze-compat/components/index.tsx"),
   "@glaze/core/hooks": r("src/glaze-compat/hooks/index.ts"),
   "@glaze/core/utils": r("src/glaze-compat/utils/index.ts"),
 };
@@ -115,6 +120,7 @@ const rendererConfig: UserConfig = {
   root,
   base: "./",
   resolve: { alias },
+  define: { __APP_DISPLAY_NAME__: JSON.stringify(pkg.productName ?? "") },
   plugins: [react(), tailwindcss()],
   optimizeDeps: {
     // react-grid-layout ships CJS deps that `require("react")`.

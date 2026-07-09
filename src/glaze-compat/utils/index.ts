@@ -1,10 +1,17 @@
 /**
- * @glaze/core/utils compat — Phase 0 stub.
+ * @glaze/core/utils compat — Phase 1 (PORT_PLAN 2.3).
  *
- * `initLogging` is a no-op for now; `cn` is a minimal class-name joiner (real
- * clsx + tailwind-merge version lands in Phase 2 when components are vendored).
+ * `cn` is the standard clsx + tailwind-merge combinator (both already
+ * dependencies). `initLogging` is a near-no-op console setup — the app never
+ * did more than call it once at boot.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
-export const initLogging: any = () => {};
-export const cn: any = (...classes: any[]) => classes.filter(Boolean).join(" ");
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
+}
+
+export function initLogging(): void {
+  // ponytail: no-op + upgrade path — wire to a real renderer logger if/when needed.
+}
