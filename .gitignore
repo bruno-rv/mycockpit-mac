@@ -1,6 +1,12 @@
 # Dependencies
 node_modules/
 
+# Build outputs (electron-vite fallback: plain Vite + lib-mode builds)
+out/
+build/
+dist/
+.devserverhost
+
 # Agent context (auto-generated, not worth versioning)
 .glaze_memory/
 
