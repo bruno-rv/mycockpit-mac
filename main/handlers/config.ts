@@ -8,6 +8,7 @@
 import { ipcMain, logger } from "@glaze/core/backend";
 import { configService, type RssFeed, type Website } from "../services/config-service.js";
 import { resetGoogleOAuth } from "../services/google-oauth.js";
+import { resetGithubOAuth } from "../services/github-oauth.js";
 
 async function broadcastConfigChanged(): Promise<void> {
   const payload = await configService.getFullPayload();
@@ -180,6 +181,31 @@ export function registerConfigHandlers(): void {
     await configService.setGoogleCredentials(clientId, clientSecret);
     // Reset cached Google OAuth service so it picks up new creds
     resetGoogleOAuth();
+    await broadcastConfigChanged();
+    return { ok: true };
+  });
+
+  ipcMain.handle("config:setGitHubClientId", async (_event, params: unknown) => {
+    if (
+      typeof params !== "object" ||
+      params === null ||
+      !("clientId" in params) ||
+      typeof (params as { clientId: unknown }).clientId !== "string"
+    ) {
+      throw new Error("config:setGitHubClientId requires { clientId: string }");
+    }
+    const { clientId } = params as { clientId: string };
+    logger.info("config", "[config:setGitHubClientId] storing client ID");
+    await configService.setGitHubClientId(clientId);
+    resetGithubOAuth();
+    await broadcastConfigChanged();
+    return { ok: true };
+  });
+
+  ipcMain.handle("config:clearGitHubClientId", async () => {
+    logger.info("config", "[config:clearGitHubClientId] removing client ID");
+    await configService.clearGitHubClientId();
+    resetGithubOAuth();
     await broadcastConfigChanged();
     return { ok: true };
   });

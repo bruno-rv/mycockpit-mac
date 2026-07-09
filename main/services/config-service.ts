@@ -30,12 +30,14 @@ export interface AppConfig {
   rssFeeds: RssFeed[];
   websites: Website[];
   youtube: YouTubeConfig;
+  githubClientId?: string;
 }
 
 export interface ConfigGetPayload extends AppConfig {
   hasAnthropicKey: boolean;
   hasOpenAIKey: boolean;
   hasGoogleCreds: boolean;
+  hasGitHubClientId: boolean;
 }
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -176,18 +178,46 @@ class ConfigService {
     return creds !== null;
   }
 
-  async getFullPayload(): Promise<ConfigGetPayload> {
+  // GitHub client ID (device flow — no secret, but still not echoed back to
+  // the renderer once set; mirrors the Google credentials mask/reconfigure UX).
+  async getGitHubClientId(): Promise<string | null> {
     const config = await this.loadConfig();
-    const [hasAnthropicKey, hasOpenAIKey, hasGoogleCreds] = await Promise.all([
+    return config.githubClientId ?? null;
+  }
+
+  async setGitHubClientId(clientId: string): Promise<void> {
+    const config = await this.loadConfig();
+    config.githubClientId = clientId;
+    await this.saveConfig(config);
+    logger.info("config-service", "[config:setGitHubClientId] GitHub client ID stored");
+  }
+
+  async clearGitHubClientId(): Promise<void> {
+    const config = await this.loadConfig();
+    delete config.githubClientId;
+    await this.saveConfig(config);
+    logger.info("config-service", "[config:clearGitHubClientId] GitHub client ID removed");
+  }
+
+  async hasGitHubClientId(): Promise<boolean> {
+    const clientId = await this.getGitHubClientId();
+    return clientId !== null && clientId.length > 0;
+  }
+
+  async getFullPayload(): Promise<ConfigGetPayload> {
+    const { githubClientId: _githubClientId, ...config } = await this.loadConfig();
+    const [hasAnthropicKey, hasOpenAIKey, hasGoogleCreds, hasGitHubClientId] = await Promise.all([
       this.hasApiKey("anthropic"),
       this.hasApiKey("openai"),
       this.hasGoogleCredentials(),
+      this.hasGitHubClientId(),
     ]);
     return {
       ...config,
       hasAnthropicKey,
       hasOpenAIKey,
       hasGoogleCreds,
+      hasGitHubClientId,
     };
   }
 

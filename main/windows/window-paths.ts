@@ -6,22 +6,27 @@ import { fileURLToPath, pathToFileURL } from "url";
 const currentFilePath = fileURLToPath(import.meta.url);
 const currentDirPath = path.dirname(currentFilePath);
 
-// Backend is at build/main/index.js, HTML is at build/index.html
-// So we go up one level from build/main/ to build/
+// Backend bundles to out/main/index.js (single-chunk lib build, see
+// vite.config.ts mainConfig), so import.meta.url resolves to that file
+// regardless of which source module it came from. One level up is out/.
 const BUILD_ROOT = path.resolve(currentDirPath, "..");
+
+// Renderer HTML + assets build to out/renderer/ (see vite.config.ts
+// rendererConfig outDir), a sibling of out/main/ and out/assets/ under BUILD_ROOT.
+const RENDERER_ROOT = path.join(BUILD_ROOT, "renderer");
 
 /**
  * Absolute path to the build directory that contains HTML entry points.
  */
 export function getBuildRoot(): string {
-  return BUILD_ROOT;
+  return RENDERER_ROOT;
 }
 
 /**
  * Resolve the on-disk HTML file for a given window.
  */
 export function resolveWindowHtml(htmlFileName: string): string {
-  return path.join(BUILD_ROOT, htmlFileName);
+  return path.join(RENDERER_ROOT, htmlFileName);
 }
 
 /**
@@ -34,15 +39,12 @@ export function getWindowFileUrl(htmlFileName: string): string {
 /**
  * Absolute path to the built preload script.
  *
- * The Vite build outputs the preload entry to `build/assets/preload.js` with a
- * stable (non-hashed) filename.  The native layer reads this path from
- * `webPreferences.preload` and injects the script into an isolated
- * WKContentWorld before page scripts run.
- *
- * In dev mode the backend runs via `tsx watch` (source directory), but the
- * preload must still be a built JS file because the native Swift host cannot
- * execute TypeScript.  A prior `npm run build` (or the Xcode build phase) is
- * expected to have produced the file.
+ * The Vite lib build outputs the preload entry to `out/assets/preload.js` as a
+ * CJS bundle with a stable (non-hashed) filename (see vite.config.ts
+ * preloadConfig). Electron reads this path from `webPreferences.preload` and
+ * injects it into the isolated preload context before page scripts run — in
+ * both dev and prod, since Electron (unlike Glaze's WKWebView host) always
+ * requires a prebuilt JS file here, never TypeScript source directly.
  */
 export function getPreloadPath(): string {
   return path.join(BUILD_ROOT, "assets", "preload.js");
@@ -52,8 +54,8 @@ export function getPreloadPath(): string {
  * Resolve the correct URL for a window, preferring the dev server when available.
  */
 export async function getWindowUrl(htmlFileName: string): Promise<string> {
-  // .devserverhost is written to the project root by dev-server.js
-  // BUILD_ROOT is build/, so we go one level up to reach the project root
+  // .devserverhost is written to the project root by scripts/dev.mjs.
+  // BUILD_ROOT is out/, so we go one level up to reach the project root.
   const devServerHostFile = path.join(BUILD_ROOT, "..", ".devserverhost");
 
   if (fs.existsSync(devServerHostFile)) {

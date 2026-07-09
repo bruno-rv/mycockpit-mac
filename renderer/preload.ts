@@ -40,7 +40,7 @@
 
 import { ipcRenderer, contextBridge, createWebUtilsAPI, installDisplayMediaCompat } from "@glaze/core/preload";
 
-// @ts-ignore dev-only parity probes; in renderer/dev/ (excluded from scaffolded apps)
+// @ts-expect-error dev-only parity probes; in renderer/dev/ (excluded from scaffolded apps)
 import { registerParityProbes } from "./dev/parity-preload.js";
 
 // Type imports only (safe - doesn't affect runtime)
@@ -388,15 +388,14 @@ function exposeGlazeAPI(): void {
 }
 
 // `process.env.GLAZE_DEV_HARNESS` is a build-time define (build-renderer replaces it
-// with "1"/"0"), not a runtime browser global — hence the no-undef disable.
-// eslint-disable-next-line no-undef
+// with "1"/"0"), not a runtime browser global — `no-undef` is off for ts/tsx (eslint.config.js;
+// this ambient `process` typing is TS-only, the base rule can't see it).
 if (process.env.GLAZE_DEV_HARNESS === "1" && preloadURL.searchParams.get("glazeParityDefaultPendingStub") === "1") {
   window.setTimeout(exposeGlazeAPI, 200);
 } else {
   exposeGlazeAPI();
 }
 
-// eslint-disable-next-line no-undef
 if (process.env.GLAZE_DEV_HARNESS === "1") {
   registerParityProbes(contextBridge, ipcRenderer);
 }

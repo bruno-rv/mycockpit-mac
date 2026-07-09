@@ -18,6 +18,7 @@ import { registerAiHandlers } from "./ai.js";
 import { registerGoogleHandlers } from "./google.js";
 import { registerYouTubeHandlers } from "./youtube.js";
 import { registerWindowHandlers } from "./window.js";
+import { registerNativeHandlers } from "./native.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,6 +54,7 @@ export function registerHandlers(): void {
   registerGoogleHandlers();
   registerYouTubeHandlers();
   registerWindowHandlers();
+  registerNativeHandlers();
 
   logger.info("handlers", "✓ All IPC handlers registered");
 }

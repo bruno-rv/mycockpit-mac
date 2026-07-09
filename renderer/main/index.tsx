@@ -1,47 +1,11 @@
 /**
  * Main window entry.
  *
- * react-grid-layout pulls in CommonJS dependencies (react-draggable,
- * react-resizable) that call `require("react")` / `require("react-dom")` at
- * module scope. React/ReactDOM are provided as ESM externals via the importmap,
- * so the bundler emits a runtime `require` that the WKWebView renderer doesn't
- * have. We install:
- *   1. a minimal `process` global (some bundled deps read process.env.NODE_ENV)
- *   2. a minimal `require` that maps the externalized ids to their ESM modules
- * BEFORE the app graph evaluates, then load the app via a deferred dynamic
- * import so these shims always run first.
+ * Under Glaze, React/ReactDOM were externalized via an importmap and this
+ * file shimmed `require("react")` so react-grid-layout's CJS deps (which
+ * `require("react")` at module scope) could resolve them at runtime. Under
+ * normal Vite bundling React is bundled directly, so the shim is dead
+ * weight — react-grid-layout's CJS deps resolve via `optimizeDeps.include`
+ * (see vite.config.ts) like any other dependency (PORT_PLAN Phase 4).
  */
-import * as React from "react";
-import * as ReactDOM from "react-dom";
-import * as ReactJsxRuntime from "react/jsx-runtime";
-
-function installShims(): void {
-  const g = globalThis as unknown as {
-    process?: { env: Record<string, string | undefined> };
-    require?: (id: string) => unknown;
-  };
-
-  if (!g.process) g.process = { env: {} };
-  if (!g.process.env) g.process.env = {};
-  if (g.process.env.NODE_ENV == null) g.process.env.NODE_ENV = "production";
-
-  if (typeof g.require !== "function") {
-    const externals: Record<string, unknown> = {
-      react: React,
-      "react-dom": ReactDOM,
-      "react/jsx-runtime": ReactJsxRuntime,
-    };
-    g.require = (id: string) => {
-      if (id in externals) return externals[id];
-      throw new Error(`Unsupported require("${id}") in renderer`);
-    };
-  }
-}
-
-installShims();
-
-Promise.resolve()
-  .then(() => import("./bootstrap"))
-  .catch((e: unknown) => {
-    console.error("[main] Failed to load app bootstrap", e);
-  });
+import "./bootstrap";

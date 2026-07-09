@@ -348,7 +348,7 @@ function RssWidget({ config }: { config: AppConfig }) {
         items: items.map((item) => ({ title: item.title, source: feedQuery.data?.title })),
       });
       setAiSummary(result.summary);
-    } catch (err) {
+    } catch {
       setAiSummary("Failed to summarize. Please check your API key in Settings.");
     } finally {
       setSummarizing(false);
