@@ -1,0 +1,19 @@
+appId: com.brunorv.mycockpit
+productName: My Cockpit
+
+directories:
+  output: dist
+
+files:
+  - out/**/*
+  - package.json
+
+mac:
+  target:
+    - dmg
+    - dir
+  icon: app-icon.icns
+  category: public.app-category.utilities
+  # No Apple Developer identity provided — build unsigned. See README for the
+  # `xattr -cr` / right-click-open caveat this leaves for end users.
+  identity: null

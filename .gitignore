@@ -10,8 +10,10 @@ dist/
 # Agent context (auto-generated, not worth versioning)
 .glaze_memory/
 
-# App icons (binary, auto-generated)
-app-icon.*
+# App icons. app-icon.icns is tracked (electron-builder needs it to build
+# from a fresh clone); app-icon.png is a large source/reference export, not
+# needed at build time, and stays ignored.
+app-icon.png
 
 # OS files
 .DS_Store

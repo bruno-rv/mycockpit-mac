@@ -54,6 +54,12 @@ export const Menu = {
  * BrowserWindow wrapper accepting Glaze's extra constructor options (e.g.
  * `windowKey`). `windowKey` is dropped for the MVP (no frame persistence);
  * everything else is passed straight through to Electron.
+ *
+ * Defaults `vibrancy: 'sidebar'` + `titleBarStyle: 'hiddenInset'` (PORT_PLAN
+ * Phase 4 drag-region bullet): WKWebView under Glaze rendered on a vibrant,
+ * inset-title-bar host window for free. Plain Electron windows are flat gray
+ * with a full native title bar unless told otherwise. Callers can still
+ * override either option explicitly.
  */
 type GlazeWindowOptions = BrowserWindowConstructorOptions & {
   windowKey?: string;
@@ -63,7 +69,11 @@ type GlazeWindowOptions = BrowserWindowConstructorOptions & {
 export class BrowserWindow extends ElectronBrowserWindow {
   constructor(options: GlazeWindowOptions = {}) {
     const { windowKey: _windowKey, ...electronOptions } = options;
-    super(electronOptions as BrowserWindowConstructorOptions);
+    super({
+      vibrancy: "sidebar",
+      titleBarStyle: "hiddenInset",
+      ...electronOptions,
+    } as BrowserWindowConstructorOptions);
   }
 }
 

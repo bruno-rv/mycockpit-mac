@@ -64,6 +64,52 @@ const stubDevHarness = {
   },
 };
 
+// CSP is injected at HTML-transform time rather than hardcoded in the source
+// html files (PORT_PLAN Phase 4): dev needs to allow the Vite dev server /
+// HMR websocket, prod is locked down to 'self' + the specific OAuth/API hosts
+// the app talks to. `ctx.server` is only set when transformIndexHtml runs
+// against the dev server (see Vite's IndexHtmlTransformContext), which is the
+// simplest available signal to pick the right variant without a second config.
+const DEV_CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline' http://localhost:* http://127.0.0.1:*",
+  "style-src 'self' 'unsafe-inline' http://localhost:* http://127.0.0.1:*",
+  "img-src 'self' data: blob: https: http://localhost:* http://127.0.0.1:*",
+  "font-src 'self' data:",
+  "connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*",
+  "media-src 'self' data: blob: https:",
+  "worker-src 'self' blob:",
+  "frame-src 'self' blob: data:",
+].join("; ");
+
+const PROD_CSP = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  // RSS/YouTube thumbnails, GitHub/Google avatars.
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  // OAuth (loopback + device flow) and RSS fetching happen in the main
+  // process, not here — nothing in the renderer calls these hosts directly.
+  // Listed anyway per the Phase-3 CSP requirement; 'https:' already covers
+  // them, this documents the specific hosts the app depends on.
+  "connect-src 'self' https://github.com https://api.github.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com",
+  "media-src 'self' data: blob: https:",
+  "worker-src 'self' blob:",
+  "frame-src 'self' blob: data:",
+].join("; ");
+
+const cspPlugin = {
+  name: "inject-csp",
+  transformIndexHtml(html: string, ctx: { server?: unknown }) {
+    return html.replace("__CSP__", ctx.server ? DEV_CSP : PROD_CSP);
+  },
+};
+
 const target = process.env.BUILD_TARGET;
 
 const mainConfig: UserConfig = {
@@ -121,7 +167,7 @@ const rendererConfig: UserConfig = {
   base: "./",
   resolve: { alias },
   define: { __APP_DISPLAY_NAME__: JSON.stringify(pkg.productName ?? "") },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), cspPlugin],
   optimizeDeps: {
     // react-grid-layout ships CJS deps that `require("react")`.
     include: ["react-draggable", "react-resizable"],
